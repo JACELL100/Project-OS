@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Process Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-blue-400 mb-2">Live Process Monitor</h1>
+            <p class="text-gray-400">Real-time system process monitoring with memory leak detection</p>
+        </div>
+
+        <!-- System Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">CPU Usage</p>
+                        <p class="text-3xl font-bold text-blue-400" id="cpu-usage">0%</p>
+                    </div>
+                    <svg class="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Memory Usage</p>
+                        <p class="text-3xl font-bold text-green-400" id="memory-usage">0%</p>
+                    </div>
+                    <svg class="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Memory Used</p>
+                        <p class="text-3xl font-bold text-purple-400" id="memory-used">0 GB</p>
+                    </div>
+                    <svg class="w-12 h-12 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Active Processes</p>
+                        <p class="text-3xl font-bold text-yellow-400" id="process-count">0</p>
+                    </div>
+                    <svg class="w-12 h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Leak Alerts -->
+        <div id="leak-alerts" class="mb-6"></div>
+
+        <!-- Auto-refresh toggle -->
+        <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" id="auto-refresh" checked class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                    <span class="text-gray-300">Auto-refresh (2s)</span>
+                </label>
+                <span class="text-gray-500 text-sm">Last updated: <span id="last-updated">Never</span></span>
+            </div>
+            <button onclick="fetchProcesses()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                Refresh Now
+            </button>
+        </div>
+
+        <!-- Process Table -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">PID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Process Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">CPU %</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Memory %</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Memory (MB)</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Threads</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-table" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                                <div class="flex items-center justify-center">
+                                    <svg class="animate-spin h-8 w-8 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="ml-3">Loading processes...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+
+        function fetchProcesses() {
+            fetch('/api/processes/')
+                .then(response => response.json())
+                .then(data => {
+                    updateSystemInfo(data.system);
+                    updateProcessTable(data.processes);
+                    updateLeakAlerts(data.processes);
+                    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+                })
+                .catch(error => {
+                    console.error('Error fetching processes:', error);
+                    document.getElementById('process-table').innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-6 py-4 text-center text-red-400">
+                                Error loading processes: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        function updateSystemInfo(system) {
+            document.getElementById('cpu-usage').textContent = system.cpu_percent + '%';
+            document.getElementById('memory-usage').textContent = system.memory_percent + '%';
+            document.getElementById('memory-used').textContent = system.memory_used_gb + ' GB';
+        }
+
+        function updateProcessTable(processes) {
+            const tbody = document.getElementById('process-table');
+            document.getElementById('process-count').textContent = processes.length;
+
+            if (processes.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-400">No processes found</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = processes.map(proc => `
+                <tr class="hover:bg-gray-750 ${proc.has_leak ? 'bg-red-900 bg-opacity-20' : ''}">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${proc.pid}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">${proc.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(proc.status)}">
+                            ${proc.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <div class="flex items-center">
+                            <div class="w-16 bg-gray-700 rounded-full h-2 mr-2">
+                                <div class="bg-blue-400 h-2 rounded-full" style="width: ${Math.min(proc.cpu_percent, 100)}%"></div>
+                            </div>
+                            <span class="text-gray-300">${proc.cpu_percent}%</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <div class="flex items-center">
+                            <div class="w-16 bg-gray-700 rounded-full h-2 mr-2">
+                                <div class="bg-green-400 h-2 rounded-full" style="width: ${Math.min(proc.memory_percent, 100)}%"></div>
+                            </div>
+                            <span class="text-gray-300">${proc.memory_percent}%</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${proc.memory_mb}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${proc.num_threads}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        ${proc.has_leak ? '<span class="px-2 py-1 bg-red-600 text-white rounded-full text-xs font-bold animate-pulse">LEAK</span>' : '<span class="text-gray-500">-</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateLeakAlerts(processes) {
+            const leakProcesses = processes.filter(p => p.has_leak);
+            const alertDiv = document.getElementById('leak-alerts');
+
+            if (leakProcesses.length === 0) {
+                alertDiv.innerHTML = '';
+                return;
+            }
+
+            alertDiv.innerHTML = `
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <svg class="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div>
+                            <h3 class="text-red-400 font-bold text-lg mb-2">⚠️ Memory Leak Detected!</h3>
+                            <p class="text-gray-300 mb-2">The following processes show signs of memory leaks:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                ${leakProcesses.map(p => `
+                                    <li class="text-gray-200">
+                                        <strong>${p.name}</strong> (PID: ${p.pid}) - ${p.memory_mb} MB
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'running': 'bg-green-600 text-green-100',
+                'sleeping': 'bg-blue-600 text-blue-100',
+                'stopped': 'bg-gray-600 text-gray-100',
+                'zombie': 'bg-red-600 text-red-100'
+            };
+            return colors[status] || 'bg-gray-600 text-gray-100';
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(fetchProcesses, 2000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                }
+            }
+        }
+
+        // Initialize
+        document.getElementById('auto-refresh').addEventListener('change', toggleAutoRefresh);
+        fetchProcesses();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>
