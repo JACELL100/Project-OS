@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Leak Simulator & Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+        }
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-gray-100 min-h-screen">
+    
+    <!-- Navigation -->
+    <nav class="bg-gray-800 bg-opacity-50 backdrop-blur-lg border-b border-gray-700">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-300 hover:text-white transition">← Back to Monitor</a>
+                    <span class="text-gray-500">|</span>
+                    <h1 class="text-xl font-bold text-purple-400">Memory Leak Simulator</h1>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 rounded-full" id="status-indicator"></div>
+                    <span class="text-sm text-gray-400" id="nav-status">Idle</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        
+        <!-- Hero Section -->
+        <div class="bg-gradient-to-r from-purple-800 to-indigo-800 rounded-2xl p-8 mb-8 border border-purple-500 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <h2 class="text-4xl font-bold text-white mb-3">🧪 Memory Leak Testing Lab</h2>
+                    <p class="text-purple-200 text-lg mb-6">
+                        Create controlled memory leaks to test detection algorithms in real-time. 
+                        Watch as the system identifies and alerts on growing memory consumption.
+                    </p>
+                    
+                    <!-- Simulator Controls -->
+                    <div class="bg-gray-900 bg-opacity-50 rounded-xl p-6 mb-6">
+                        <h3 class="text-xl font-semibold text-purple-300 mb-4">Simulator Controls</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-800 rounded-lg p-4">
+                                <p class="text-gray-400 text-sm mb-1">Status</p>
+                                <p class="text-2xl font-bold" id="sim-status">Idle</p>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg p-4">
+                                <p class="text-gray-400 text-sm mb-1">Memory Allocated</p>
+                                <p class="text-2xl font-bold text-yellow-400" id="sim-memory">0 MB</p>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg p-4">
+                                <p class="text-gray-400 text-sm mb-1">Duration</p>
+                                <p class="text-2xl font-bold text-blue-400" id="sim-duration">0s</p>
+                            </div>
+                            <div class="bg-gray-800 rounded-lg p-4">
+                                <p class="text-gray-400 text-sm mb-1">Detection Time</p>
+                                <p class="text-lg font-bold text-green-400">~15-20 seconds</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <button id="start-btn" onclick="startSimulator()" 
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition transform hover:scale-105 shadow-lg flex items-center justify-center">
+                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Start Leak Simulation
+                            </button>
+                            <button id="stop-btn" onclick="stopSimulator()" disabled
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center">
+                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+                                </svg>
+                                Stop & Clear Memory
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Info Box -->
+                    <div class="bg-blue-900 bg-opacity-30 border border-blue-500 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <svg class="w-6 h-6 text-blue-400 mr-3 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <p class="text-blue-200 font-semibold mb-1">How it works:</p>
+                                <ul class="text-blue-300 text-sm space-y-1">
+                                    <li>• Allocates 1MB of memory per second</li>
+                                    <li>• Detection algorithm tracks memory over 15 data points</li>
+                                    <li>• Alert triggers when memory increases by 40%+</li>
+                                    <li>• Look for the Python process in the table below</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hidden lg:block ml-8">
+                    <div class="text-9xl">💉</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Overview -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <p class="text-gray-400 text-sm mb-1">CPU Usage</p>
+                <p class="text-2xl font-bold text-blue-400" id="cpu-usage">0%</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <p class="text-gray-400 text-sm mb-1">Memory Usage</p>
+                <p class="text-2xl font-bold text-green-400" id="memory-usage">0%</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <p class="text-gray-400 text-sm mb-1">Available RAM</p>
+                <p class="text-2xl font-bold text-purple-400" id="memory-available">0 GB</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <p class="text-gray-400 text-sm mb-1">Leaks Detected</p>
+                <p class="text-2xl font-bold text-red-400" id="leak-count">0</p>
+            </div>
+        </div>
+
+        <!-- Leak Alerts -->
+        <div id="leak-alerts" class="mb-6"></div>
+
+        <!-- Process Table -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+            <div class="bg-gray-700 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Live Process Monitor</h3>
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="auto-refresh" checked class="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded">
+                        <span class="text-gray-300 text-sm">Auto-refresh (2s)</span>
+                    </label>
+                    <button onclick="fetchProcesses()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">PID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Process</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Memory (MB)</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Memory %</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">CPU %</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Threads</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Leak Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-table" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center">
+                                    <svg class="animate-spin h-12 w-12 text-purple-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <p class="text-gray-400 text-lg">Loading processes...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="mt-8 text-center text-gray-500 text-sm">
+            <p>Last updated: <span id="last-updated">Never</span></p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let simulatorRunning = false;
+        let statusCheckInterval = null;
+
+        // Fetch processes and update table
+        function fetchProcesses() {
+            fetch('/leak-simulator/api/leak-processes/')
+                .then(response => response.json())
+                .then(data => {
+                    updateSystemInfo(data.system);
+                    updateProcessTable(data.processes);
+                    updateLeakAlerts(data.processes, data.leak_count);
+                    document.getElementById('leak-count').textContent = data.leak_count;
+                    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+                })
+                .catch(error => {
+                    console.error('Error fetching processes:', error);
+                    showNotification('Error', 'Failed to fetch process data', 'error');
+                });
+        }
+
+        // Update system information
+        function updateSystemInfo(system) {
+            document.getElementById('cpu-usage').textContent = system.cpu_percent + '%';
+            document.getElementById('memory-usage').textContent = system.memory_percent + '%';
+            document.getElementById('memory-available').textContent = system.memory_available_gb + ' GB';
+        }
+
+        // Update process table
+        function updateProcessTable(processes) {
+            const tbody = document.getElementById('process-table');
+            
+            if (processes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-8 text-center text-gray-400">No processes found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = processes.map(proc => {
+                const rowClass = proc.is_simulator ? 'bg-purple-900 bg-opacity-40 border-l-4 border-purple-500' :
+                                proc.has_leak ? 'bg-red-900 bg-opacity-30 border-l-4 border-red-500' : 'hover:bg-gray-750';
+                
+                const badge = proc.is_simulator ? 
+                    '<span class="px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-bold animate-pulse">SIMULATOR</span>' :
+                    proc.has_leak ? 
+                    `<span class="px-3 py-1 bg-red-600 text-white rounded-full text-xs font-bold pulse-glow">LEAK +${proc.increase_percent}%</span>` :
+                    '<span class="text-gray-500">—</span>';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td class="px-6 py-4 text-sm font-mono text-gray-300">${proc.pid}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-white">${proc.name}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-xs rounded-full ${getStatusColor(proc.status)}">
+                                ${proc.status}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-bold ${proc.is_simulator ? 'text-yellow-400' : 'text-gray-300'}">${proc.memory_mb}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <div class="flex items-center">
+                                <div class="w-20 bg-gray-700 rounded-full h-2 mr-2">
+                                    <div class="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full" style="width: ${Math.min(proc.memory_percent, 100)}%"></div>
+                                </div>
+                                <span class="text-gray-300">${proc.memory_percent}%</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-300">${proc.cpu_percent}%</td>
+                        <td class="px-6 py-4 text-sm text-gray-300">${proc.num_threads}</td>
+                        <td class="px-6 py-4">${badge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update leak alerts
+        function updateLeakAlerts(processes, leakCount) {
+            const leakProcesses = processes.filter(p => p.has_leak);
+            const alertDiv = document.getElementById('leak-alerts');
+
+            if (leakProcesses.length === 0) {
+                alertDiv.innerHTML = '';
+                return;
+            }
+
+            alertDiv.innerHTML = `
+                <div class="bg-red-900 bg-opacity-40 border-2 border-red-500 rounded-xl p-6 shadow-2xl pulse-glow">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-red-300 font-bold text-xl mb-3">⚠️ Memory Leak Detected!</h3>
+                            <p class="text-gray-200 mb-4">Found ${leakCount} process${leakCount > 1 ? 'es' : ''} with suspicious memory growth:</p>
+                            <div class="space-y-2">
+                                ${leakProcesses.map(p => `
+                                    <div class="bg-gray-900 bg-opacity-50 rounded-lg p-3 flex items-center justify-between">
+                                        <div>
+                                            <span class="font-bold text-white">${p.name}</span>
+                                            <span class="text-gray-400 text-sm ml-2">(PID: ${p.pid})</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-yellow-400 font-bold">${p.memory_mb} MB</div>
+                                            <div class="text-red-400 text-sm">+${p.increase_percent}% increase</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get status color
+        function getStatusColor(status) {
+            const colors = {
+                'running': 'bg-green-600 text-green-100',
+                'sleeping': 'bg-blue-600 text-blue-100',
+                'stopped': 'bg-gray-600 text-gray-100',
+                'zombie': 'bg-red-600 text-red-100'
+            };
+            return colors[status] || 'bg-gray-600 text-gray-100';
+        }
+
+        // Start simulator
+        function startSimulator() {
+            fetch('/leak-simulator/api/start/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'started') {
+                        simulatorRunning = true;
+                        document.getElementById('start-btn').disabled = true;
+                        document.getElementById('stop-btn').disabled = false;
+                        document.getElementById('sim-status').textContent = 'Running';
+                        document.getElementById('sim-status').className = 'text-2xl font-bold text-green-400 animate-pulse';
+                        
+                        updateNavStatus(true);
+                        
+                        showNotification('✓ Simulator Started', 
+                            `Watch Python process (PID: ${data.pid}) grow in memory usage`, 
+                            'success');
+                        
+                        // Start status checking
+                        startStatusCheck();
+                    } else {
+                        showNotification('Info', data.message, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Error', 'Failed to start simulator', 'error');
+                });
+        }
+
+        // Stop simulator
+        function stopSimulator() {
+            fetch('/leak-simulator/api/stop/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'stopped') {
+                        simulatorRunning = false;
+                        document.getElementById('start-btn').disabled = false;
+                        document.getElementById('stop-btn').disabled = true;
+                        document.getElementById('sim-status').textContent = 'Stopped';
+                        document.getElementById('sim-status').className = 'text-2xl font-bold text-gray-400';
+                        document.getElementById('sim-memory').textContent = '0 MB';
+                        document.getElementById('sim-duration').textContent = '0s';
+                        
+                        updateNavStatus(false);
+                        
+                        showNotification('✓ Simulator Stopped', 
+                            `Allocated ${data.memory_allocated_mb} MB over ${data.duration_seconds}s`, 
+                            'success');
+                        
+                        // Stop status checking
+                        stopStatusCheck();
+                    } else {
+                        showNotification('Info', data.message, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Error', 'Failed to stop simulator', 'error');
+                });
+        }
+
+        // Update nav status indicator
+        function updateNavStatus(running) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('nav-status');
+            
+            if (running) {
+                indicator.className = 'w-3 h-3 rounded-full bg-green-500 animate-pulse';
+                statusText.textContent = 'Simulator Running';
+                statusText.className = 'text-sm text-green-400';
+            } else {
+                indicator.className = 'w-3 h-3 rounded-full bg-gray-500';
+                statusText.textContent = 'Idle';
+                statusText.className = 'text-sm text-gray-400';
+            }
+        }
+
+        // Start status checking
+        function startStatusCheck() {
+            if (statusCheckInterval) return;
+            
+            statusCheckInterval = setInterval(() => {
+                fetch('/leak-simulator/api/status/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.running) {
+                            document.getElementById('sim-memory').textContent = data.memory_allocated_mb + ' MB';
+                            if (data.duration_seconds) {
+                                document.getElementById('sim-duration').textContent = Math.round(data.duration_seconds) + 's';
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Status check error:', error));
+            }, 1000);
+        }
+
+        // Stop status checking
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
+        }
+
+        // Show notification
+        function showNotification(title, message, type) {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-blue-600'
+            };
+            
+            const icons = {
+                success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+                error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>',
+                info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>'
+            };
+            
+            notification.className = `${colors[type]} text-white px-6 py-4 rounded-lg shadow-2xl animate-slide-in max-w-md`;
+            notification.innerHTML = `
+                <div class="flex items-start">
+                    <svg class="w-6 h-6 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        ${icons[type]}
+                    </svg>
+                    <div class="flex-1">
+                        <div class="font-bold text-lg">${title}</div>
+                        <div class="text-sm mt-1">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                notification.style.transition = 'all 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // Toggle auto-refresh
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(fetchProcesses, 2000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Initialize
+        document.getElementById('auto-refresh').addEventListener('change', toggleAutoRefresh);
+        
+        // Initial fetch
+        fetchProcesses();
+        toggleAutoRefresh();
+        
+        // Check if simulator was already running
+        fetch('/leak-simulator/api/status/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.running) {
+                    simulatorRunning = true;
+                    document.getElementById('start-btn').disabled = true;
+                    document.getElementById('stop-btn').disabled = false;
+                    document.getElementById('sim-status').textContent = 'Running';
+                    document.getElementById('sim-status').className = 'text-2xl font-bold text-green-400 animate-pulse';
+                    updateNavStatus(true);
+                    startStatusCheck();
+                }
+            });
+    </script>
+</body>
+</html>
